@@ -1,5 +1,5 @@
-//Just be better
 module.exports = {
 	print: console.log,
-	warn: console.warn
+	warn: console.warn,
+	error: console.error
 }
