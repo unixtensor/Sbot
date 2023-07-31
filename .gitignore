@@ -14,7 +14,7 @@ dist-ssr
 # The Sbot
 config.json
 *.env
-**/Sbot/**/*.js 
+**/bin/
 
 # Editor directories and files
 .vscode/*
