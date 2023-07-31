@@ -4,4 +4,4 @@
 
 cd ./src/
 npm run tsc
-node Sbot/index.js
+node Sbot/bin/index.js
