@@ -1,7 +1,6 @@
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js')
-const { token }       		 = require("../config.json")
+const { Client, Events, GatewayIntentBits, Collection, REST, Routes } = require('discord.js')
+const { token, clientId, guildId } = require("../config.json")
 const { print, warn, error } = require("./io")
-
 const fs   = require("node:fs")
 const path = require("node:path")
 
@@ -33,6 +32,7 @@ client.on(Events.InteractionCreate, async (interaction: any) => {
 	}
 })
 
+const Commands: JSON[] = []
 const CommandsPath = path.join(__dirname, "commands")
 const CommandFolders = fs.readdirSync(CommandsPath)
 
@@ -40,15 +40,32 @@ for (const Folder of CommandFolders) {
 	const CommandFolder = path.join(CommandsPath, Folder)
 	const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
 	for (const File of CommandFiles) {
-		const FilePath = path.join(CommandsPath, File)
+		const FilePath = path.join(CommandFolder, File)
 		const Command = require(FilePath)
-		if ("data" in Command && "execute" in Command) {
-			client.commands.set(Command.data.name, Command)
+		//Explicit
+		if ("data" in Command) {
+			if ("execute" in Command) {
+				Commands.push(Command.data.toJSON())
+			} else {
+				warn(`The command at ${FilePath} is missing a required "execute" property.`)
+			}
 		} else {
-			warn(`The command at ${FilePath} is missing a required "data" or "execute" property.`)
-		}	
+			warn(`The command at ${FilePath} is missing a required "data" property.`)
+		}
 	}
 }
+
+const rest = new REST().setToken(token)
+const CommandRegister = async () => {
+	try {
+		print(`Started refreshing ${Commands.length} application (/) commands.`)
+		const Data = await rest.put(Routes.applicationGuildCommands(clientId, guildId), {body: Commands})
+		print(`Successfully reloaded ${Data.length} application (/) commands.`);
+	} catch(_error) {
+		error(_error)
+	}
+}
+CommandRegister()
 
 interface Client_User {
 	user: {
