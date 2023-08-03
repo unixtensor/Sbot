@@ -1,38 +1,13 @@
 const { Client, Events, GatewayIntentBits, Collection, REST, Routes } = require('discord.js')
-const { token, clientId, guildId } = require("../config.json")
-const { print, warn, error } = require("./io")
+const { token, clientId }    = require("./config.json")
+const { print, warn, error } = require("./io.js")
 const fs   = require("node:fs")
 const path = require("node:path")
 
 const client = new Client({intents: [GatewayIntentBits.Guilds]})
 client.commands = new Collection()
-client.on(Events.InteractionCreate, async (interaction: any) => {
-	if (interaction.isChatInputCommand()) {
-		const Command = interaction.client.commands.get(interaction.commandName)
-		if (Command) {
-			try {
-				await Command.execute(interaction)
-			} catch(_error) {
-				error(_error)
-				if (interaction.replied || interaction.deferred) {
-					await interaction.followUp({
-						content: "The command threw an error.",
-						ephemeral: true
-					})
-				} else {
-					await interaction.reply({
-						content: "The command threw an error.",
-						ephemeral: true
-					})
-				}
-			}
-		} else {
-			warn(`Command ${interaction.commandName} does not exist.`)
-		}
-	}
-})
 
-const Commands: JSON[] = []
+const SlashCommands: JSON[] = []
 const CommandsPath = path.join(__dirname, "commands")
 const CommandFolders = fs.readdirSync(CommandsPath)
 
@@ -45,7 +20,8 @@ for (const Folder of CommandFolders) {
 		//Explicit
 		if ("data" in Command) {
 			if ("execute" in Command) {
-				Commands.push(Command.data.toJSON())
+				client.commands.set(Command.data.name, Command)
+				SlashCommands.push(Command.data.toJSON())
 			} else {
 				warn(`The command at ${FilePath} is missing a required "execute" property.`)
 			}
@@ -55,17 +31,33 @@ for (const Folder of CommandFolders) {
 	}
 }
 
+client.on(Events.InteractionCreate, async (interaction: any) => {
+	if (interaction.isChatInputCommand()) {
+		const Command = client.commands.get(interaction.commandName)
+		if (Command) {
+			try {
+				await Command.execute(interaction)
+			} catch(_error) {
+				error(_error)
+				if (interaction.replied || interaction.deferred) {
+					await interaction.followUp({content: "The command unexpectedly threw an error.", ephemeral: true});
+				} else {
+					await interaction.reply({content: "The command unexpectedly threw an error.", ephemeral: true});
+				}
+			}
+		}
+	}
+})
+
 const rest = new REST().setToken(token)
-const CommandRegister = async () => {
+const RegisterCommands = async () => {
 	try {
-		print(`Started refreshing ${Commands.length} application (/) commands.`)
-		const Data = await rest.put(Routes.applicationGuildCommands(clientId, guildId), {body: Commands})
-		print(`Successfully reloaded ${Data.length} application (/) commands.`);
+		await rest.put(Routes.applicationCommands(clientId), {body: SlashCommands})
 	} catch(_error) {
 		error(_error)
 	}
 }
-CommandRegister()
+RegisterCommands()
 
 interface Client_User {
 	user: {
