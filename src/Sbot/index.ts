@@ -23,10 +23,10 @@ for (const Folder of CommandFolders) {
 				client.commands.set(Command.data.name, Command)
 				SlashCommands.push(Command.data.toJSON())
 			} else {
-				warn(`The command at ${FilePath} is missing a required "execute" property.`)
+				warn([`The command at ${FilePath} is missing a required "execute" property.`])
 			}
 		} else {
-			warn(`The command at ${FilePath} is missing a required "data" property.`)
+			warn([`The command at ${FilePath} is missing a required "data" property.`])
 		}
 	}
 }
@@ -38,7 +38,7 @@ client.on(Events.InteractionCreate, async (interaction: any) => {
 			try {
 				await Command.execute(interaction)
 			} catch(_error) {
-				error(_error)
+				error([_error])
 				if (interaction.replied || interaction.deferred) {
 					await interaction.followUp({content: "The command unexpectedly threw an error.", ephemeral: true});
 				} else {
@@ -54,7 +54,7 @@ const RegisterCommands = async () => {
 	try {
 		await rest.put(Routes.applicationCommands(clientId), {body: SlashCommands})
 	} catch(_error) {
-		error(_error)
+		error([_error])
 	}
 }
 RegisterCommands()
@@ -65,7 +65,7 @@ interface Client_User {
 	}
 }
 client.once(Events.ClientReady, (c: Client_User) => {
-	print(`Ready! Logged in as ${c.user.tag}`)
+	print([`Ready! Logged in as ${c.user.tag}`])
 })
 
 client.login(token)

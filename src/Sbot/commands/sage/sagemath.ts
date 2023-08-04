@@ -1,12 +1,31 @@
 const { SlashCommandBuilder } = require("discord.js")
-const { warn }  = require("../../io.js")
+const { warn } = require("../../io.js")
+const { MessageParser } = require("../parsedOutput")
 const { spawn } = require("node:child_process")
 
-const New_Sage_Kernel = (): any => {
-	const Sage_Kernel = spawn("sage", [], {shell: true})
-	Sage_Kernel.stdout.setEncoding("utf8")
-	process.stdin.pipe(Sage_Kernel.stdin)
-	return Sage_Kernel
+let SageKernel_Data: string = ''
+
+const SageKernel = class {
+	public Kernel: any;
+
+	constructor() {
+		this.Kernel = spawn("sage", [], {shell: true})
+		this.Kernel.stdout.setEncoding("utf8")
+		process.stdin.pipe(this.Kernel.stdin)
+	}
+
+	readonly Handlers = {
+		stderr: (data: string) => {
+			warn([data])
+			SageKernel_Data = `ERROR: ${data}`
+		},
+		stdout: (data: string) => {
+			
+		},
+		onclose: (data: string) => {
+			SageKernel_Data = ''
+		}
+	}
 }
 
 interface __interaction { 
@@ -17,19 +36,17 @@ module.exports = {
 		.setName('sage')
 		.setDescription('Open a sagemath kernel and run sagemath code (Python input).'),
 	async execute(interaction: __interaction) {
-		const Sage = New_Sage_Kernel()
-		let Data: string = ''
-		Sage.stderr.on("data", (data: string) => {
-			const err = data.toString()
-			warn(err)
-			Data = `ERROR: ${err}`
-		})
-		Sage.stdout.on("data", (data: string) => {
-			//TODO: data handler (parsing strings) so sage info wont be sent, on results.
-			if (Data == '') {
-				Data = data.toString()
-			}
-		})
-		await interaction.reply(Data)
+		if (SageKernel_Data == '') {
+			const Sage = new SageKernel()
+			
+			Sage.Kernel.stderr.on("data", (data: string) => Sage.Handlers.stderr(data.toString()))
+			Sage.Kernel.on("close", (code: string)       => Sage.Handlers.onclose(code.toString()))
+			Sage.Kernel.stdout.on("data", (data: string) => Sage.Handlers.stdout(data.toString()))
+
+			const MessageData = new MessageParser(Sage_Data)
+			await interaction.reply(MessageData.toBlockMessage())
+		} else {
+			await interaction.reply("Please wait, another Sage instance is present.")
+		}
 	},
 }
