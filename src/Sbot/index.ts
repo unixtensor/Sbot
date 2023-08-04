@@ -1,8 +1,9 @@
-const { Client, Events, GatewayIntentBits, Collection, REST, Routes } = require('discord.js')
-const { token, clientId }    = require("./config.json")
-const { print, warn, error } = require("./io.js")
-const fs   = require("node:fs")
-const path = require("node:path")
+import { Client, Events, GatewayIntentBits, Collection, REST, Routes } from 'discord.js'
+import { print, warn, error } from "./io.js"
+import fs from "node:fs"
+import path from "node:path"
+
+const { token, clientId } = require("./config.json")
 
 const client = new Client({intents: [GatewayIntentBits.Guilds]})
 client.commands = new Collection()

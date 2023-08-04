@@ -6,8 +6,13 @@ const LOCAL_Time = (): string => {
 	}
 	return "???"
 }
-module.exports = {
-	print: (Output: any[]) => console.log(`[${LOCAL_Time()}]:`, ...Output),
-	warn:  (Output: any[]) => console.warn(`[${LOCAL_Time()}]:`, ...Output),
-	error: (Output: any[]) => console.error(`[${LOCAL_Time()}]:`, ...Output)
+
+const print = (Output: any[]) => console.log(`[${LOCAL_Time()}]:`, ...Output)
+const warn  = (Output: any[]) => console.warn(`[${LOCAL_Time()}]:`, ...Output)
+const error = (Output: any[]) => console.error(`[${LOCAL_Time()}]:`, ...Output)
+
+export {
+	print,
+	warn,
+	error
 }

@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require("discord.js")
-const { warn } = require("../../io.js")
-const { MessageParser } = require("../parsedOutput")
-const { spawn } = require("node:child_process")
+import { SlashCommandBuilder } from "discord.js"
+import { warn } from "../../io.js"
+import { MessageParser } from "../parsedOutput"
+import { spawn } from "node:child_process"
 
 let SageKernel_Data: string = ''
 
@@ -19,12 +19,12 @@ const SageKernel = class {
 			warn([data])
 			SageKernel_Data = `ERROR: ${data}`
 		},
+		onclose: (data: string) => {
+			SageKernel_Data = ''
+		},
 		stdout: (data: string) => {
 			
 		},
-		onclose: (data: string) => {
-			SageKernel_Data = ''
-		}
 	}
 }
 

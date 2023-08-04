@@ -1,4 +1,4 @@
-const parser = class {
+const MessageParser = class {
 	protected Input: string;
 	
 	constructor(Input: string) {
@@ -14,6 +14,6 @@ const parser = class {
 	}
 }
 
-module.exports = {
-	MessageParser: parser
+export {
+	MessageParser
 }
