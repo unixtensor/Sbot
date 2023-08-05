@@ -13,21 +13,24 @@ const CommandsPath = path.join(__dirname, "commands")
 const CommandFolders = fs.readdirSync(CommandsPath)
 
 for (const Folder of CommandFolders) {
-	const CommandFolder = path.join(CommandsPath, Folder)
-	const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
-	for (const File of CommandFiles) {
-		const FilePath = path.join(CommandFolder, File)
-		const Command = require(FilePath)
-		//Explicit
-		if ("data" in Command) {
-			if ("execute" in Command) {
-				client.commands.set(Command.data.name, Command)
-				SlashCommands.push(Command.data.toJSON())
+	const IsNotFolder = path.parse(Folder).base.match(/[.]\w+$/)
+	if (!IsNotFolder) {
+		const CommandFolder = path.join(CommandsPath, Folder)
+		const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
+		for (const File of CommandFiles) {
+			const FilePath = path.join(CommandFolder, File)
+			const Command = require(FilePath)
+			//Explicit
+			if ("data" in Command) {
+				if ("execute" in Command) {
+					client.commands.set(Command.data.name, Command)
+					SlashCommands.push(Command.data.toJSON())
+				} else {
+					warn([`The command at ${FilePath} is missing a required "execute" property.`])
+				}
 			} else {
-				warn([`The command at ${FilePath} is missing a required "execute" property.`])
+				warn([`The command at ${FilePath} is missing a required "data" property.`])
 			}
-		} else {
-			warn([`The command at ${FilePath} is missing a required "data" property.`])
 		}
 	}
 }
