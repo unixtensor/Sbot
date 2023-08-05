@@ -19,12 +19,12 @@ const SageKernel = class {
 			warn([data])
 			SageKernel_Data = `ERROR: ${data}`
 		},
+		stdout: (data: string) => {
+			
+		},
 		onclose: (data: string) => {
 			SageKernel_Data = ''
-		},
-		stdout: (data: string) => {
-				
-		},
+		}
 	}
 }
 
