@@ -13,7 +13,7 @@ const SageKernel = class {
 		this.Kernel = spawn("sage", [], {shell: true})
 		this.Kernel.stdout.setEncoding("utf8")
 	}
-
+	
 	readonly Handlers = {
 		stderr: (data: string) => {
 			warn([data])
@@ -23,13 +23,7 @@ const SageKernel = class {
 			SageKernel_Data = ''
 		},
 		stdout: (data: string) => {
-			if (!this.SageKernelInfo) {
-				const SageInfo = data.match(/SageMath[ ]version[ ]\d+/m)
-				if (SageInfo) {
-					this.SageKernelInfo = data
-				}
-			}
-
+				
 		},
 	}
 }
