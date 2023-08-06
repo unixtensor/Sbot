@@ -108,6 +108,7 @@
   },
   "include": [
   	"./Sbot/**/*",
-  	"./Sbot/**/*.json"
+  	"./Sbot/**/*.json",
+  	"./Sbot/**/*.lua"
   ],
 }

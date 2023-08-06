@@ -1,3 +1,7 @@
+// Sbot
+// @interpreterK - GitHub
+// 2023
+
 import { Client, Events, GatewayIntentBits, Collection, REST, Routes } from 'discord.js'
 import { print, warn, error } from "./io.js"
 import fs from "node:fs"

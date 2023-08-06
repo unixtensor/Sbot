@@ -1,3 +1,7 @@
+// Sbot
+// @interpreterK - GitHub
+// 2023
+
 const { SlashCommandBuilder } = require("discord.js")
 
 const Silly: string[] = [

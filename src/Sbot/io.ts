@@ -1,3 +1,7 @@
+// Sbot
+// @interpreterK - GitHub
+// 2023
+
 const LOCAL_Time = (): string => {
 	const now = new Date()
 	if (now) {

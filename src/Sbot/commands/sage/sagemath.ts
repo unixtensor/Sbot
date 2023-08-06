@@ -1,75 +1,73 @@
+// Sbot
+// @interpreterK - GitHub
+// 2023
+
 import { SlashCommandBuilder } from "discord.js"
 import { warn } from "../../io.js"
 import { MessageParser } from "../parsedOutput"
-import { spawn } from "node:child_process"
+import { spawn, exec } from "node:child_process"
 
 type SageService<T> = T
 
 interface __Sage {
-	AnswerQueue: string,
-	Service: SageService<object> | null
+	AnswerQueue: string
 }
 interface __interaction { 
 	reply: (arg0: string) => any
 }
 
 const Sage: __Sage = {
-	AnswerQueue: '',
-	Service: null
+	AnswerQueue: ''
 }
 
+//I had a whole cache system built for this for really good speed but i couldn't get NodeJS to keep writing to the process stream without calling "stdin.end()".
+//Very unfortunate speed sacrifice,
+
+let SageVersion: SageService<string> = "null"
+exec("sage -v", (_, out) => SageVersion = out)
+
 const SageKernel = class {
-	public Kernel: {
-		version: SageService<any>,
-		constructor: SageService<any>
-	};
+	public readonly Kernel: SageService<any>;
 	private FirstTime: boolean;
-	public SageVersion: string | undefined
 
 	constructor() {
-		this.Kernel = {
-			version: spawn("sage", ["--version"]),
-			constructor: spawn("sage", [], {shell: true})
-		}
-		this.Kernel.version.stdout.setEncoding("utf8")
-		this.Kernel.constructor.stdout.setEncoding("utf8")
-		this.Kernel.version.stdout("data", (chunk: string) => this.SageVersion = chunk.toString())
+		this.Kernel = spawn("sage", [], {shell: true})
+		this.Kernel.stdout.setEncoding("utf8")
 		this.FirstTime = true //speed freak
 	}
 
 	readonly Handlers = {
-		stdout: (chunk: string) => {
+		stdout: (chunk: string): string => {
+			let str: string = ""
 			if (this.FirstTime) {
-				//this condition check is only here so this match doesn't get computed every single time std gets output lolz
-				const isSageInfo = chunk.match(/[\n\w]/g)
-				if (isSageInfo)
+				//this condition check is only here so this match doesn't get computed every single time std gets output
+				if (chunk.match(/[\n\w]/g)) //check if this isn't the introduction info to sagemath
 					this.FirstTime = false
 			} else {
-				const SageIn = chunk.match(/^sage:/)
-				if (!SageIn) {
-
-				}
+				if (!chunk.match(/^sage:/))
+					str = chunk
 			}
-		}
+			return str
+		},
+
+
 	}
 }
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('sage')
-		.setDescription('Open a sagemath kernel and run sagemath code (Python input).'),
+		.setDescription('Open a sagemath kernel and run sagemath code (Python input).')
+		.addStringOption(o => o.setName("input").setDescription("Python input, check sagemath docs for more info.").setRequired(true)),
 	async execute(interaction: __interaction) {
 		if (Sage.AnswerQueue == '') {
-			if (!Sage.Service) {
-				const SageService = new SageKernel()
-				const Kernel = SageService.Kernel.constructor
+			const SageService = new SageKernel()
+			const Kernel = SageService.Kernel
 
-				Kernel.stdout("data", (chunk: string) => {
-
-				})
-				Sage.Service = SageService
-			}
-			
+			Kernel.stdout("data", (chunk: string) => {
+				SageService.Handlers.stdout(chunk.toString())
+			})
+		
 			const MessageData = new MessageParser(Sage.AnswerQueue)
 			await interaction.reply(MessageData.CodeBlockMultiLine())
 

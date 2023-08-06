@@ -1,3 +1,7 @@
+// Sbot
+// @interpreterK - GitHub
+// 2023
+
 const MessageParser = class {
 	protected Input: string;
 	
