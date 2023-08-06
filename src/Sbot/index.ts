@@ -5,6 +5,9 @@ import path from "node:path"
 
 const { token, clientId } = require("./config.json")
 
+const BotStartElapsed = Date.now()
+print(["Bot is logging in..."])
+
 const client = new Client({intents: [GatewayIntentBits.Guilds]})
 client.commands = new Collection()
 
@@ -71,5 +74,6 @@ interface Client_User {
 client.once(Events.ClientReady, (c: Client_User) => {
 	print([`Ready! Logged in as ${c.user.tag}`])
 })
-
-client.login(token)
+client.login(token).then(() => {
+	print(["Bot logged in elapsed time:", (Date.now()-BotStartElapsed)+"ms"])
+})

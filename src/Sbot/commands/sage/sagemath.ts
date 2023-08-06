@@ -3,54 +3,77 @@ import { warn } from "../../io.js"
 import { MessageParser } from "../parsedOutput"
 import { spawn } from "node:child_process"
 
-let SageKernel_Data: string = ''
+type SageService<T> = T
+
+interface __Sage {
+	AnswerQueue: string,
+	Service: SageService<object> | null
+}
+interface __interaction { 
+	reply: (arg0: string) => any
+}
+
+const Sage: __Sage = {
+	AnswerQueue: '',
+	Service: null
+}
 
 const SageKernel = class {
-	public Kernel: any;
-	public SageKernelInfo: string | undefined
+	public Kernel: {
+		version: SageService<any>,
+		constructor: SageService<any>
+	};
+	private FirstTime: boolean;
+	public SageVersion: string | undefined
 
 	constructor() {
-		this.Kernel = spawn("sage", [], {shell: true})
-		this.Kernel.stdout.setEncoding("utf8")
+		this.Kernel = {
+			version: spawn("sage", ["--version"]),
+			constructor: spawn("sage", [], {shell: true})
+		}
+		this.Kernel.version.stdout.setEncoding("utf8")
+		this.Kernel.constructor.stdout.setEncoding("utf8")
+		this.Kernel.version.stdout("data", (chunk: string) => this.SageVersion = chunk.toString())
+		this.FirstTime = true //speed freak
 	}
-	
+
 	readonly Handlers = {
-		stderr: (data: string) => {
-			warn([data])
-			SageKernel_Data = `ERROR: ${data}`
-		},
-		stdout: (data: string) => {
-			
-		},
-		onclose: (data: string) => {
-			SageKernel_Data = ''
+		stdout: (chunk: string) => {
+			if (this.FirstTime) {
+				//this condition check is only here so this match doesn't get computed every single time std gets output lolz
+				const isSageInfo = chunk.match(/[\n\w]/g)
+				if (isSageInfo)
+					this.FirstTime = false
+			} else {
+				const SageIn = chunk.match(/^sage:/)
+				if (!SageIn) {
+
+				}
+			}
 		}
 	}
 }
 
-//For speed
-let cached_SageKernel: any = null
-
-interface __interaction { 
-	reply: (arg0: string) => any
-}
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('sage')
 		.setDescription('Open a sagemath kernel and run sagemath code (Python input).'),
 	async execute(interaction: __interaction) {
-		if (SageKernel_Data == '') {
-			if (!cached_SageKernel) {
-				cached_SageKernel = new SageKernel()
+		if (Sage.AnswerQueue == '') {
+			if (!Sage.Service) {
+				const SageService = new SageKernel()
+				const Kernel = SageService.Kernel.constructor
+
+				Kernel.stdout("data", (chunk: string) => {
+
+				})
+				Sage.Service = SageService
 			}
 			
-			cached_SageKernel.Kernel.stderr.on("data", (data: string) => cached_SageKernel.Handlers.stderr(data.toString()))
-			cached_SageKernel.Kernel.on("close", (code: string)       => cached_SageKernel.Handlers.onclose(code.toString()))
-			cached_SageKernel.Kernel.stdout.on("data", (data: string) => cached_SageKernel.Handlers.stdout(data.toString()))
+			const MessageData = new MessageParser(Sage.AnswerQueue)
+			await interaction.reply(MessageData.CodeBlockMultiLine())
 
-			const MessageData = new MessageParser(SageKernel_Data)
-			await interaction.reply(MessageData.toBlockMessage())
-			SageKernel_Data = ''
+			Sage.AnswerQueue = ''
 		} else {
 			await interaction.reply("Please wait, another Sage instance is present.")
 		}
