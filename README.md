@@ -1,6 +1,6 @@
 # Sbot
 
-## Required dependencies:
+## Dependencies:
 * `sagemath`
 * `wolframengine`
 * `python`
