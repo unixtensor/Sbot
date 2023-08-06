@@ -2,8 +2,10 @@
 
 ## Required dependencies:
 * `sagemath`
-* `luajit`
+* `wolframengine`
 * `python`
+* `jupyter-notebook`
+* `luajit`
 * `ffmpeg`
 * `yt-dlp`
 * `docker`
