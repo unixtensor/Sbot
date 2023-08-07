@@ -50,7 +50,9 @@ const SageKernel = class {
 			return str
 		},
 
-
+		stderr: (chunk: string) => {
+			warn(["SageMath - stderr ERROR:", chunk])
+		}
 	}
 }
 
@@ -65,8 +67,12 @@ module.exports = {
 			const Kernel = SageService.Kernel
 
 			Kernel.stdout("data", (chunk: string) => {
-				SageService.Handlers.stdout(chunk.toString())
+				const SageResult: string = SageService.Handlers.stdout(chunk.toString())
+				if (SageResult) {
+					
+				}
 			})
+			Kernel.stderr("data", (chunk: string) => SageService.Handlers.stderr(chunk.toString()))
 		
 			const MessageData = new MessageParser(Sage.AnswerQueue)
 			await interaction.reply(MessageData.CodeBlockMultiLine())
