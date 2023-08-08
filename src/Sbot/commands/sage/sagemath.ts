@@ -4,34 +4,34 @@
 
 import { SlashCommandBuilder } from "discord.js"
 import { warn } from "../../io.js"
-import { MessageParser } from "../parsedOutput"
+import { MessageParser } from "../_lib/parsedOutput/src.js"
 import { spawn, exec } from "node:child_process"
 
 type SageService<T> = T
 
 interface __Sage {
-	AnswerQueue: string
+	AnswerQueue: boolean
 }
 interface __interaction { 
 	reply: (arg0: string) => any
 }
 
 const Sage: __Sage = {
-	AnswerQueue: ''
+	AnswerQueue: false
 }
 
 //I had a whole cache system built for this for really good speed but i couldn't get NodeJS to keep writing to the process stream without calling "stdin.end()".
-//Very unfortunate speed sacrifice,
+//Very unfortunate speed sacrifice,e
 
-let SageVersion: SageService<string> = "null"
-exec("sage -v", (_, out) => SageVersion = out)
+let SageVersion: SageService< | null> = null
+exec("sage -v", (_, out) => SageVersion = new MessageParser(out))
 
 const SageKernel = class {
 	public readonly Kernel: SageService<any>;
 	private FirstTime: boolean;
 
 	constructor() {
-		this.Kernel = spawn("sage", [], {shell: true})
+		this.Kernel = spawn("sage", [])
 		this.Kernel.stdout.setEncoding("utf8")
 		this.FirstTime = true //speed freak
 	}
@@ -48,10 +48,6 @@ const SageKernel = class {
 					str = chunk
 			}
 			return str
-		},
-
-		stderr: (chunk: string) => {
-			warn(["SageMath - stderr ERROR:", chunk])
 		}
 	}
 }
@@ -62,23 +58,37 @@ module.exports = {
 		.setDescription('Open a sagemath kernel and run sagemath code (Python input).')
 		.addStringOption(o => o.setName("input").setDescription("Python input, check sagemath docs for more info.").setRequired(true)),
 	async execute(interaction: __interaction) {
-		if (Sage.AnswerQueue == '') {
+		if (!Sage.AnswerQueue) {
+			Sage.AnswerQueue = true
 			const SageService = new SageKernel()
 			const Kernel = SageService.Kernel
-
-			Kernel.stdout("data", (chunk: string) => {
-				const SageResult: string = SageService.Handlers.stdout(chunk.toString())
-				if (SageResult) {
-					
-				}
+			const SageLogger = new Promise<string>((toResponse, toResponseFail) => {
+				Kernel.stdout("data", (chunk: string) => {
+					const SageResult: string = SageService.Handlers.stdout(chunk.toString())
+					if (SageResult) {
+						toResponse(SageResult)
+					}
+				})
+				Kernel.stderr("data", (chunk: string) => {
+					const str = chunk.toString()
+					warn(["SageMath - stderr ERROR:", str])
+					toResponseFail(str)
+				})
 			})
-			Kernel.stderr("data", (chunk: string) => SageService.Handlers.stderr(chunk.toString()))
-		
-			const MessageData = new MessageParser(Sage.AnswerQueue)
-			await interaction.reply(MessageData.CodeBlockMultiLine())
 
-			Sage.AnswerQueue = ''
+			SageLogger.then(async (Reponse: string) => {
+				const SageResponse_Res = new MessageParser(Reponse)
+
+				await interaction.reply(`Using Sage Version: ${SageVersion.CodeBlock()}
+					Output: ${SageResponse_Res.CodeBlockMultiLine()}`)
+				Sage.AnswerQueue = false
+			}, async (FailResponse: string) => {
+				const SageVersion_Res = new MessageParser(SageVersion)
+
+				await interaction.reply(``)
+			})
 		} else {
+			//TODO: make a command only for administrators to force a new sage instance
 			await interaction.reply("Please wait, another Sage instance is present.")
 		}
 	},

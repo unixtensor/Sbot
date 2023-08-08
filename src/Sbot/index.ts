@@ -20,8 +20,10 @@ const CommandsPath = path.join(__dirname, "commands")
 const CommandFolders = fs.readdirSync(CommandsPath)
 
 for (const Folder of CommandFolders) {
-	const IsNotFolder = path.parse(Folder).base.match(/[.]\w+$/)
-	if (!IsNotFolder) {
+	const fparse = path.parse(Folder)
+	const IsFile = fparse.base.match(/[.]\w+$/)
+	const IsLibrary = fparse.base.match(/^_.*/)
+	if (!IsFile && !IsLibrary) {
 		const CommandFolder = path.join(CommandsPath, Folder)
 		const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
 		for (const File of CommandFiles) {
@@ -79,5 +81,5 @@ client.once(Events.ClientReady, (c: Client_User) => {
 	print([`Ready! Logged in as ${c.user.tag}`])
 })
 client.login(token).then(() => {
-	print(["Bot logged in elapsed time:", (Date.now()-BotStartElapsed)+"ms"])
+	print(["Elapsed time:", (Date.now()-BotStartElapsed)+"ms"])
 })
