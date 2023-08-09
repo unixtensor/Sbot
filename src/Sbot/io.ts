@@ -11,9 +11,9 @@ const LOCAL_Time = (): string => {
 	return "???"
 }
 
-const print = (Output: any[]) => console.log(`[${LOCAL_Time()}]:`, ...Output)
-const warn  = (Output: any[]) => console.warn(`[${LOCAL_Time()}]:`, ...Output)
-const error = (Output: any[]) => console.error(`[${LOCAL_Time()}]:`, ...Output)
+const print = (Output: any[]) => console.log(`(PRINT) [${LOCAL_Time()}]:`, ...Output)
+const warn  = (Output: any[]) => console.warn(`(WARN) [${LOCAL_Time()}]:`, ...Output)
+const error = (Output: any[]) => console.error(`(ERROR) [${LOCAL_Time()}]:`, ...Output)
 
 export {
 	print,

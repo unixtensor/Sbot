@@ -3,37 +3,33 @@
 // 2023
 
 import { SlashCommandBuilder } from "discord.js"
-import { warn } from "../../io.js"
-import { MessageParser } from "../_lib/parsedOutput/src.js"
+import { warn, print } from "../../io.js"
+import { MessageParser } from "../parsedOutput.js"
 import { spawn, exec } from "node:child_process"
+import { InteractionType } from "../../@types/discordjs.js"
 
 type SageService<T> = T
-
-interface __Sage {
-	AnswerQueue: boolean
-}
-interface __interaction { 
-	reply: (arg0: string) => any
-}
-
-const Sage: __Sage = {
-	AnswerQueue: false
-}
+// type ParsedMessage = typeof MessageParser
+type Kernel = SageService<any>
 
 //I had a whole cache system built for this for really good speed but i couldn't get NodeJS to keep writing to the process stream without calling "stdin.end()".
 //Very unfortunate speed sacrifice,e
+let AnswerQueue: boolean = false
+let SageVersion: SageService<string> = "null"
+exec("sage -v", (_, out) => SageVersion = new MessageParser(out).CodeBlock())
 
-let SageVersion: SageService< | null> = null
-exec("sage -v", (_, out) => SageVersion = new MessageParser(out))
-
-const SageKernel = class {
-	public readonly Kernel: SageService<any>;
+const SageService = class {
+	public readonly Kernel: SageService<Kernel>;
 	private FirstTime: boolean;
 
 	constructor() {
 		this.Kernel = spawn("sage", [])
 		this.Kernel.stdout.setEncoding("utf8")
 		this.FirstTime = true //speed freak
+	}
+
+	GetKernel(): SageService<Kernel> {
+		return this.Kernel
 	}
 
 	readonly Handlers = {
@@ -57,18 +53,22 @@ module.exports = {
 		.setName('sage')
 		.setDescription('Open a sagemath kernel and run sagemath code (Python input).')
 		.addStringOption(o => o.setName("input").setDescription("Python input, check sagemath docs for more info.").setRequired(true)),
-	async execute(interaction: __interaction) {
-		if (!Sage.AnswerQueue) {
-			Sage.AnswerQueue = true
-			const SageService = new SageKernel()
-			const Kernel = SageService.Kernel
+	async execute(interaction: InteractionType) {
+		if (!AnswerQueue) {
+			AnswerQueue = true
+			print(["SageMath command started"])
+
+			const Sage = new SageService()
+			const Kernel = Sage.GetKernel()
+
 			const SageLogger = new Promise<string>((toResponse, toResponseFail) => {
 				Kernel.stdout("data", (chunk: string) => {
-					const SageResult: string = SageService.Handlers.stdout(chunk.toString())
+					const SageResult: string = Sage.Handlers.stdout(chunk.toString())
 					if (SageResult) {
+						print(["Got a SageMath result"])
 						toResponse(SageResult)
 					}
-				})
+				}) 
 				Kernel.stderr("data", (chunk: string) => {
 					const str = chunk.toString()
 					warn(["SageMath - stderr ERROR:", str])
@@ -76,17 +76,19 @@ module.exports = {
 				})
 			})
 
-			SageLogger.then(async (Reponse: string) => {
-				const SageResponse_Res = new MessageParser(Reponse)
-
-				await interaction.reply(`Using Sage Version: ${SageVersion.CodeBlock()}
-					Output: ${SageResponse_Res.CodeBlockMultiLine()}`)
-				Sage.AnswerQueue = false
+			SageLogger.then(async (Response: string) => {
+				const FormatResult = new MessageParser(Response)
+				await interaction.reply(`Using Sage Version: ${SageVersion}\nOutput: ${FormatResult.CodeBlockMultiLine("m")}`)
 			}, async (FailResponse: string) => {
-				const SageVersion_Res = new MessageParser(SageVersion)
-
-				await interaction.reply(``)
+				warn(["SageMath - Promise FailResponse ERROR:", FailResponse])
+				const FormatResult = new MessageParser(FailResponse)
+				await interaction.reply(`Using Sage Version: ${SageVersion}\nSage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
+			}).finally(() => {
+				AnswerQueue = false
 			})
+
+			Kernel.stdin.write(interaction.options.getString("input"))
+			Kernel.stdin.end()
 		} else {
 			//TODO: make a command only for administrators to force a new sage instance
 			await interaction.reply("Please wait, another Sage instance is present.")

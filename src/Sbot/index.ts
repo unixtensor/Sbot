@@ -9,6 +9,12 @@ import path from "node:path"
 
 const { token, clientId } = require("./config.json")
 
+interface Client_User {
+	user: {
+		tag: any
+	}
+}
+
 const BotStartElapsed = Date.now()
 print(["Bot is logging in..."])
 
@@ -22,8 +28,7 @@ const CommandFolders = fs.readdirSync(CommandsPath)
 for (const Folder of CommandFolders) {
 	const fparse = path.parse(Folder)
 	const IsFile = fparse.base.match(/[.]\w+$/)
-	const IsLibrary = fparse.base.match(/^_.*/)
-	if (!IsFile && !IsLibrary) {
+	if (!IsFile) {
 		const CommandFolder = path.join(CommandsPath, Folder)
 		const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
 		for (const File of CommandFiles) {
@@ -72,11 +77,6 @@ const RegisterCommands = async () => {
 }
 RegisterCommands()
 
-interface Client_User {
-	user: {
-		tag: any
-	}
-}
 client.once(Events.ClientReady, (c: Client_User) => {
 	print([`Ready! Logged in as ${c.user.tag}`])
 })
