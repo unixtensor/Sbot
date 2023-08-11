@@ -64,6 +64,7 @@ module.exports = {
 			const Sage = new SageService()
 			const InteractionInput = interaction.options.getString("input")
 			const InteractionInputFormat = new MessageParser(InteractionInput).CodeBlock()
+			
 			const SageReply = async (Response: string) => {
 				const FormatResult = new MessageParser(Response)
 				await interaction.reply(`Using Sage Version: ${SageVersion}\nOutput of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("m")}`)
@@ -88,8 +89,13 @@ module.exports = {
 					toResponseFail(str)
 				})
 			})
+			const SageLoggerFail = async (reject: string) => {
+				warn(["The Sage logger failed (Rejected/Error):", reject])
+				const FormatResult = new MessageParser(`The sage logger failed (Rejected/Error): ${reject}`)
+				await interaction.reply(``)
+			}
 
-			SageLogger.then(SageReply, SageFailed).finally(() => AnswerQueue = false)
+			SageLogger.then(SageReply, SageFailed).catch(SageLoggerFail).finally(() => AnswerQueue = false)
 			Sage.Kernel.stdin.write(InteractionInput)
 			Sage.Kernel.stdin.end()
 		} else {
