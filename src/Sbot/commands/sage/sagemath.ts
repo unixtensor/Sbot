@@ -9,41 +9,44 @@ import { spawn, exec } from "node:child_process"
 import { InteractionType } from "../../@types/discordjs.js"
 
 type SageService<T> = T
-// type ParsedMessage = typeof MessageParser
 type Kernel = SageService<any>
 
 //I had a whole cache system built for this for really good speed but i couldn't get NodeJS to keep writing to the process stream without calling "stdin.end()".
-//Very unfortunate speed sacrifice,e
+//Very unfortunate speed sacrifice
 let AnswerQueue: boolean = false
 let SageVersion: SageService<string> = "null"
-exec("sage -v", (_, out) => SageVersion = new MessageParser(out).CodeBlock())
+exec("sage --version", (_, out) => SageVersion = new MessageParser(out).CodeBlock())
 
 const SageService = class {
 	public readonly Kernel: SageService<Kernel>;
 	private FirstTime: boolean;
+	private stdheap: string[];
 
 	constructor() {
 		this.Kernel = spawn("sage", [])
 		this.Kernel.stdout.setEncoding("utf8")
 		this.FirstTime = true //speed freak
-	}
-
-	GetKernel(): SageService<Kernel> {
-		return this.Kernel
+		this.stdheap = []
 	}
 
 	readonly Handlers = {
-		stdout: (chunk: string): string => {
-			let str: string = ""
+		stdout: (chunk: string): string[] => {
 			if (this.FirstTime) {
 				//this condition check is only here so this match doesn't get computed every single time std gets output
-				if (chunk.match(/[\n\w]/g)) //check if this isn't the introduction info to sagemath
+				if (chunk.match(/[\n\w]/g)) { //check if this isn't the introduction info to sagemath
 					this.FirstTime = false
+					this.stdheap = []
+				}
 			} else {
-				if (!chunk.match(/^sage:/))
-					str = chunk
+				if (!chunk.match(/^sage:/)) {
+					if (chunk.indexOf("png viewer")) {
+						
+					} else {
+						this.stdheap.push(chunk.match(/sage:.?/) ? chunk.replace(/sage:.?/, "") : chunk)
+					}
+				}
 			}
-			return str
+			return this.stdheap
 		}
 	}
 }
@@ -57,40 +60,41 @@ module.exports = {
 		if (!AnswerQueue) {
 			AnswerQueue = true
 			print(["SageMath command started"])
-
+			
 			const Sage = new SageService()
-			const Kernel = Sage.GetKernel()
+			const InteractionInput = interaction.options.getString("input")
+			const InteractionInputFormat = new MessageParser(InteractionInput).CodeBlock()
+			const SageReply = async (Response: string) => {
+				const FormatResult = new MessageParser(Response)
+				await interaction.reply(`Using Sage Version: ${SageVersion}\nOutput of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("m")}`)
+			}
+			const SageFailed = async (FailResponse: string) => {
+				warn(["SageMath - Promise FailResponse ERROR:", FailResponse])
+				const FormatResult = new MessageParser(FailResponse)
+				await interaction.reply(`Using Sage Version: ${SageVersion}\nSage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
+			}
 
 			const SageLogger = new Promise<string>((toResponse, toResponseFail) => {
-				Kernel.stdout("data", (chunk: string) => {
-					const SageResult: string = Sage.Handlers.stdout(chunk.toString())
+				Sage.Kernel.stdout.on("data", (chunk: string) => {
+					const SageResult: string[] = Sage.Handlers.stdout(chunk.toString())
 					if (SageResult) {
 						print(["Got a SageMath result"])
-						toResponse(SageResult)
+						toResponse(SageResult.join('\n'))
 					}
 				}) 
-				Kernel.stderr("data", (chunk: string) => {
+				Sage.Kernel.stderr.on("data", (chunk: string) => {
 					const str = chunk.toString()
 					warn(["SageMath - stderr ERROR:", str])
 					toResponseFail(str)
 				})
 			})
 
-			SageLogger.then(async (Response: string) => {
-				const FormatResult = new MessageParser(Response)
-				await interaction.reply(`Using Sage Version: ${SageVersion}\nOutput: ${FormatResult.CodeBlockMultiLine("m")}`)
-			}, async (FailResponse: string) => {
-				warn(["SageMath - Promise FailResponse ERROR:", FailResponse])
-				const FormatResult = new MessageParser(FailResponse)
-				await interaction.reply(`Using Sage Version: ${SageVersion}\nSage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
-			}).finally(() => {
-				AnswerQueue = false
-			})
-
-			Kernel.stdin.write(interaction.options.getString("input"))
-			Kernel.stdin.end()
+			SageLogger.then(SageReply, SageFailed).finally(() => AnswerQueue = false)
+			Sage.Kernel.stdin.write(InteractionInput)
+			Sage.Kernel.stdin.end()
 		} else {
-			//TODO: make a command only for administrators to force a new sage instance
+			//TODO: make a command only for administrators to force a new sage instance?
+			setTimeout(() => AnswerQueue = false, 10000)
 			await interaction.reply("Please wait, another Sage instance is present.")
 		}
 	},
