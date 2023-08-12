@@ -2,7 +2,7 @@ import { warn } from "../io.js"
 import fs from "node:fs"
 import path from "node:path"
 
-const FetchLatest = (DirectoryPath: string): string | null => {
+const NewestFileFetch = (DirectoryPath: string): string | null => {
 	let NewestFile: string | null = null
 	fs.readdir(DirectoryPath, (Error, Files) => {
 		if (Error) {
@@ -26,5 +26,5 @@ const FetchLatest = (DirectoryPath: string): string | null => {
 }
 
 export {
-	FetchLatest
+	NewestFileFetch
 }

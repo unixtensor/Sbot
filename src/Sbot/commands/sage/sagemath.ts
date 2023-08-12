@@ -7,6 +7,7 @@ import { warn, print } from "../../io.js"
 import { MessageParser } from "../parsedOutput.js"
 import { spawn, exec } from "node:child_process"
 import { InteractionType } from "../../@types/discordjs.js"
+import { NewestFileFetch } from "commands/dirNewestFile.js"
 
 type SageService<T> = T
 type Kernel = SageService<any>
@@ -20,33 +21,43 @@ exec("sage --version", (_, out) => SageVersion = new MessageParser(out).CodeBloc
 const SageService = class {
 	public readonly Kernel: SageService<Kernel>;
 	private FirstTime: boolean;
-	private stdheap: string[];
+	public stdheap: {
+		entries: string[], 
+		parsed: boolean
+	};
 
 	constructor() {
 		this.Kernel = spawn("sage", [])
 		this.Kernel.stdout.setEncoding("utf8")
 		this.FirstTime = true //speed freak
-		this.stdheap = []
+		this.stdheap = {
+			entries: [],
+			parsed: false
+		}
 	}
 
 	readonly Handlers = {
-		stdout: (chunk: string): string[] => {
+		stdout: (chunk: string): string[] | boolean => {
 			if (this.FirstTime) {
+				//high-level optimization
 				//this condition check is only here so this match doesn't get computed every single time std gets output
 				if (chunk.match(/[\n\w]/g)) { //check if this isn't the introduction info to sagemath
 					this.FirstTime = false
-					this.stdheap = []
+					this.stdheap.entries = [] //clear entries
 				}
 			} else {
 				if (!chunk.match(/^sage:/)) {
-					if (chunk.indexOf("png viewer")) {
+					if (chunk.indexOf("png viewer") != -1) {
+						//Here for later, https://doc.sagemath.org/html/en/reference/misc/sage/misc/temporary_file.html
+						//^tmp.{8}$
+						const Img_tmp_Dir: string = '/tmp/'
 						
 					} else {
-						this.stdheap.push(chunk.match(/sage:.?/) ? chunk.replace(/sage:.?/, "") : chunk)
+						this.stdheap.entries.push(chunk.replace(/sage:.?/, ""))
 					}
 				}
 			}
-			return this.stdheap
+			return this.stdheap.entries
 		}
 	}
 }
@@ -54,33 +65,37 @@ const SageService = class {
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('sage')
-		.setDescription('Open a sagemath kernel and run sagemath code (Python input).')
-		.addStringOption(o => o.setName("input").setDescription("Python input, check sagemath docs for more info.").setRequired(true)),
+		.setDescription('Open a SageMath kernel instance and run SageMath code (Python input).')
+		.addStringOption(o => o.setName("input").setDescription("Python input, check SageMath docs for more info. / https://www.sagemath.org/help.html").setRequired(true)),
 	async execute(interaction: InteractionType) {
 		if (!AnswerQueue) {
 			AnswerQueue = true
 			print(["SageMath command started"])
 			
+			const UsingSageVersion: string = `Using SageMath Version: ${SageVersion}\n`
+			const InteractionInput: string = interaction.options.getString("input")
+			const InteractionInputFormat: string = new MessageParser(InteractionInput).CodeBlock()
+
 			const Sage = new SageService()
-			const InteractionInput = interaction.options.getString("input")
-			const InteractionInputFormat = new MessageParser(InteractionInput).CodeBlock()
 			
 			const SageReply = async (Response: string) => {
 				const FormatResult = new MessageParser(Response)
-				await interaction.reply(`Using Sage Version: ${SageVersion}\nOutput of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("m")}`)
+				await interaction.reply(UsingSageVersion+`Output of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("m")}`)
 			}
 			const SageFailed = async (FailResponse: string) => {
 				warn(["SageMath - Promise FailResponse ERROR:", FailResponse])
 				const FormatResult = new MessageParser(FailResponse)
-				await interaction.reply(`Using Sage Version: ${SageVersion}\nSage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
+				await interaction.reply(UsingSageVersion+`Sage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
 			}
 
 			const SageLogger = new Promise<string>((toResponse, toResponseFail) => {
 				Sage.Kernel.stdout.on("data", (chunk: string) => {
 					const SageResult: string[] = Sage.Handlers.stdout(chunk.toString())
-					if (SageResult) {
+					if (SageResult.length != 0) {
 						print(["Got a SageMath result"])
-						toResponse(SageResult.join('\n'))
+						toResponse(
+							SageResult.length != 1 ? SageResult.join('\n') : SageResult.join()
+						)
 					}
 				}) 
 				Sage.Kernel.stderr.on("data", (chunk: string) => {
@@ -91,7 +106,7 @@ module.exports = {
 			})
 			const SageLoggerFail = async (reject: string) => {
 				warn(["The Sage logger failed (Rejected/Error):", reject])
-				const FormatResult = new MessageParser(`The sage logger failed (Rejected/Error): ${reject}`)
+				const FormatResult = new MessageParser(`The Sage logger failed (Rejected/Error): ${reject}`)
 				await interaction.reply(``)
 			}
 

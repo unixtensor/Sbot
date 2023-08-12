@@ -16,6 +16,8 @@ interface Client_User {
 }
 
 const BotStartElapsed = Date.now()
+
+print(["--------------------\n", "Sbot - a powerful multi-purpose bot for scientific, development, &, entertainment use.\n", ""])
 print(["Bot is logging in..."])
 
 const client = new Client({intents: [GatewayIntentBits.Guilds]})
