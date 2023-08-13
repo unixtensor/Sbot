@@ -5,6 +5,7 @@
 * `npm`
 * `sagemath`
 * `wolframengine`
+* `googler`
 * `python`
 * `jupyter-notebook`
 * `luajit`
