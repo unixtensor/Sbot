@@ -3,9 +3,10 @@
 // 2023
 
 import { SlashCommandBuilder } from "discord.js"
+import { spawn, exec } from "node:child_process"
+import path from "node:path"
 import { warn, print } from "../../io.js"
 import { MessageParser } from "../parsedOutput.js"
-import { spawn, exec } from "node:child_process"
 import { InteractionType } from "../../@types/discordjs.js"
 import { NewestFileFetch } from "commands/dirNewestFile.js"
 
@@ -36,7 +37,7 @@ const SageService = class {
 		}
 	}
 
-	readonly Handlers = {
+	public readonly Handlers = {
 		stdout: (chunk: string): string[] | boolean => {
 			if (this.FirstTime) {
 				//high-level optimization
@@ -50,7 +51,7 @@ const SageService = class {
 					if (chunk.indexOf("png viewer") != -1) {
 						//Here for later, https://doc.sagemath.org/html/en/reference/misc/sage/misc/temporary_file.html
 						//^tmp.{8}$
-						const Img_tmp_Dir: string = '/tmp/'
+						const tmp_Dir: string = "/tmp/"
 						
 					} else {
 						this.stdheap.entries.push(chunk.replace(/sage:.?/, ""))
@@ -79,8 +80,8 @@ module.exports = {
 			const Sage = new SageService()
 			
 			const SageReply = async (Response: string) => {
-				const FormatResult = new MessageParser(Response)
-				await interaction.reply(UsingSageVersion+`Output of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("m")}`)
+				const FormatResult = new MessageParser(`= ${Response}`)
+				await interaction.reply(UsingSageVersion+`Output of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("asciidoc")}`)
 			}
 			const SageFailed = async (FailResponse: string) => {
 				warn(["SageMath - Promise FailResponse ERROR:", FailResponse])
