@@ -18,13 +18,12 @@ interface stdheap {
 	filepath: string | null,
 	parsed: boolean,
 	status: {
-		error: boolean,
-		errorfeed: string,
+		error: null | string | Error,
 	}
 }
 
 let SageVersion: SageService<string> = "null"
-exec("sage --version", (_, out) => SageVersion = new MessageParser(out).CodeBlock())
+exec("sage --version", (_, out) => SageVersion = new MessageParser(`Using SageMath Version: ${out}\n`).CodeBlock())
 
 let AnswerQueue: boolean = false
 const SageKernel: SageService<Kernel> = spawn("sage", [])
@@ -41,10 +40,12 @@ const SageService = class {
 			filepath: null,
 			parsed: false, //Mark the operation done and return the final result
 			status: {
-				error: false,
-				errorfeed: ""
+				error: null
 			}
 		}
+	}
+	private clearstdheap(): void {
+		this.stdheap = {entries: [], filepath: null, parsed: false, status: {error: null}}
 	}
 
 	public readonly Handlers = {
@@ -54,43 +55,40 @@ const SageService = class {
 				//this condition check is only here so this match doesn't get computed every single time std gets output
 				if (chunk.match(/[\n\w]/g)) { //check if this isn't the introduction info to sagemath
 					this.FirstTime = false
-					this.stdheap.entries = [] //clear entries
+					this.clearstdheap()
 				}
 			} else {
 				if (!chunk.match(/^sage:/)) {
 					if (chunk.indexOf("png viewer") != -1) {
 						//Here for later, https://doc.sagemath.org/html/en/reference/misc/sage/misc/temporary_file.html
-						const tmp_Files = fs.readdirSync("/tmp/").filter((folder: string) => {
-							const isTheTempFolder = folder.match(/^tmp.{8}$/)
-							return isTheTempFolder && isTheTempFolder[0]
-						})
-						if (tmp_Files.length != 0) {
-							for (const Cache of tmp_Files) {
-								const Cache_Files = fs.readdirSync(path.join("/tmp/", Cache)).filter((file: string) => file.endsWith(".png"))
-								if (Cache_Files[0]) {
-									for (const pngImage of Cache_Files) {
-										
+						let PNG_Result_Path: string | null = null
+						fs.readdir("/tmp/", (Error, Files) => {
+							if (Error) {
+								warn(["Error reading /tmp/ directory:", Error])
+								this.stdheap.status.error = Error
+							} else {
+								Files.forEach((tmp_File: string) => {
+									if (tmp_File.match(/^tmp.{8}$/)) {
+
 									}
-								}
+								})
 							}
-						} else {
-							warn(["No temp file for Sage was found in \"tmp\"."])
-							this.stdheap.status.error = true
-							this.stdheap.status.errorfeed = "No temp file for Sage was found in \"tmp\"."
-						}
-						this.stdheap.parsed = true
+						})
+						this.stdheap.filepath = PNG_Result_Path
 					} else {
-						//sometimes, sage output's input ("sage:") with the output result
-						const operation_end = chunk.match(/sage:.?/)
-						if (operation_end) {
-							this.stdheap.parsed = true
-							this.stdheap.entries.push(chunk.replace(/sage:.?/, ""))
-						} else {
-							this.stdheap.entries.push(chunk)
-						}
+						warn(["No temp file for Sage was found in \"tmp\"."])
+						this.stdheap.status.error = "No temp file for Sage was found in \"tmp\"."
 					}
-				} else {
 					this.stdheap.parsed = true
+				} else {
+					//sometimes, sage output's the input ("sage:") with the output result
+					const operation_end = chunk.match(/sage:.?/)
+					if (operation_end) {
+						this.stdheap.parsed = true
+						this.stdheap.entries.push(chunk.replace(/sage:.?/, ""))
+					} else {
+						this.stdheap.entries.push(chunk)
+					}
 				}
 			}
 			return this.stdheap
@@ -110,7 +108,7 @@ const SageLogger = new Promise<string>((toResponse, toResponseFail) => {
 				)
 			}
 		} else {
-			toResponse(SageResult.status.errorfeed)
+			toResponse(SageResult.status.error.toString())
 		}
 	}) 
 	SageKernel.stderr.on("data", (chunk: string) => {
@@ -119,8 +117,6 @@ const SageLogger = new Promise<string>((toResponse, toResponseFail) => {
 		toResponseFail(str)
 	})
 })
-const UsingSageVersion: string = `Using SageMath Version: ${SageVersion}\n`
-
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -141,12 +137,12 @@ module.exports = {
 			}
 			const SageReply = async (Response: string) => {
 				const FormatResult = new MessageParser(`= ${Response}`)
-				await interaction.reply(UsingSageVersion+`Output of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("asciidoc")}`)
+				await interaction.reply(SageVersion+`Output of ${InteractionInputFormat}: ${FormatResult.CodeBlockMultiLine("asciidoc")}`)
 			}
 			const SageFailed = async (FailResponse: string) => {
 				warn(["SageMath - Promise FailResponse ERROR:", FailResponse])
 				const FormatResult = new MessageParser(FailResponse)
-				await interaction.reply(UsingSageVersion+`Sage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
+				await interaction.reply(SageVersion+`Sage failed. This is most likely not Sage's fault but my programming. ERROR: ${FormatResult.CodeBlockMultiLine()}`)
 			}
 			SageLogger.then(SageReply, SageFailed).catch(SageLoggerFail).finally(() => AnswerQueue = false)
 
