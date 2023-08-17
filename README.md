@@ -6,6 +6,7 @@
 * `sagemath`
 * `wolframengine`
 * `googler`
+* `firefox` -headless
 * `python`
 * `jupyter-notebook`
 * `luajit`

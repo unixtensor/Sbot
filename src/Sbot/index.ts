@@ -17,7 +17,7 @@ interface Client_User {
 
 const BotStartElapsed = Date.now()
 
-print(["--------------------\n", "Sbot - a powerful multi-purpose bot for scientific, development, &, entertainment use.\n", ""])
+print(["\n--------------------\n", "Sbot - a powerful multi-purpose bot for scientific, development, &, entertainment use.\n", "--------------------"])
 print(["Bot is logging in..."])
 
 const client = new Client({intents: [GatewayIntentBits.Guilds]})
@@ -28,9 +28,10 @@ const CommandsPath = path.join(__dirname, "commands")
 const CommandFolders = fs.readdirSync(CommandsPath)
 
 for (const Folder of CommandFolders) {
-	const fparse = path.parse(Folder)
-	const IsFile = fparse.base.match(/[.]\w+$/)
-	if (!IsFile) {
+	const ParsedFolder = path.parse(Folder)
+	const IsFile = ParsedFolder.base.match(/[.]\w+$/)
+	const IsLibrary = ParsedFolder.base.match(/^_.+/)
+	if (!IsFile && !IsLibrary) {
 		const CommandFolder = path.join(CommandsPath, Folder)
 		const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
 		for (const File of CommandFiles) {
@@ -80,7 +81,7 @@ const RegisterCommands = async () => {
 RegisterCommands()
 
 client.once(Events.ClientReady, (c: Client_User) => {
-	print([`Ready! Logged in as ${c.user.tag}`])
+	print([`Logged in as ${c.user.tag}`])
 })
 client.login(token).then(() => {
 	print(["Elapsed time:", (Date.now()-BotStartElapsed)+"ms"])
