@@ -29,9 +29,8 @@ const CommandFolders = fs.readdirSync(CommandsPath)
 
 for (const Folder of CommandFolders) {
 	const ParsedFolder = path.parse(Folder)
-	const IsFile = ParsedFolder.base.match(/[.]\w+$/)
 	const IsLibrary = ParsedFolder.base.match(/^_.+/)
-	if (!IsFile && !IsLibrary) {
+	if (!IsLibrary) {
 		const CommandFolder = path.join(CommandsPath, Folder)
 		const CommandFiles = fs.readdirSync(CommandFolder).filter((file: string) => file.endsWith(".js"))
 		for (const File of CommandFiles) {

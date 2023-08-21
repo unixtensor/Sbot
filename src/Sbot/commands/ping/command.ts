@@ -2,21 +2,19 @@
 // @interpreterK - GitHub
 // 2023
 
-const { SlashCommandBuilder } = require("discord.js")
+import { SlashCommandBuilder } from "discord.js"
+import { InteractionType } from "../../@types/discordjs"
 
 const Silly: string[] = [
 	"Shut up",
 	"Ok."
 ]
 
-interface __interaction { 
-	reply: (arg0: string) => any
-}
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("ping")
 		.setDescription("Test the bot with a ping."),
-	async execute(interaction: __interaction) {
+	async execute(interaction: InteractionType) {
 		await interaction.reply(Silly[Math.round(Math.random()*(Silly.length-1))])
 	},
 }
