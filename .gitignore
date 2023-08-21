@@ -13,7 +13,6 @@ dist-ssr
 *.local
 # The Sbot
 config.json
-*.env
 **/bin/
 
 # Editor directories and files
