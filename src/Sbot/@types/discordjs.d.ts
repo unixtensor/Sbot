@@ -10,11 +10,3 @@ declare module "discord.js" {
 		commands: Collection<any, any> //??
 	}
 }
-
-// :P
-export interface InteractionType {
-    options: {
-    	getString: (arg0: string) => any
-    }
-	reply: (arg0: string) => any
-}
