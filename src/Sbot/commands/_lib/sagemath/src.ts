@@ -6,13 +6,13 @@
 //xdg-mime query default text/html
 //xdg-mime query default image/png
 
-import { spawn, exec, ChildProcessWithoutNullStreams } from "node:child_process"
+import { ChildProcessWithoutNullStreams, exec } from "node:child_process"
+import { warn } from "../../../io.js"
 import path from "node:path"
 import fs from "node:fs"
 import EventEmitter from "node:events"
-import { warn } from "../../../io.js"
-import { MessageParser } from "../parseOutput.js"
 import MessageParser from "../parseOutput.js"
+import NewProcessStream from "../ProcessManager.js"
 
 type SageService<T> = T
 type Kernel = SageService<any>
@@ -28,11 +28,10 @@ interface stdioheap {
 let SageVersion: SageService<string> = "null"
 exec("sage --version", (_Error, Out) => SageVersion = new MessageParser(Out).CodeBlock())
 
-let Kernel: null | ChildProcessWithoutNullStreams = null
+let Kernel: undefined | ChildProcessWithoutNullStreams
 const KernelInstance = () => {
 	if (!Kernel) {
 		Kernel = spawn("sage", [])
-		Kernel.stdout.setEncoding("utf8")
 	}
 	return Kernel
 }

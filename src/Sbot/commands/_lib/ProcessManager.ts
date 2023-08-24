@@ -1,17 +1,27 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process"
 
-const ProcessSleepTime = 5000 //ms
+interface OpenProcessesHash {
+	[index: string]: ChildProcessWithoutNullStreams | undefined
+}
 
-const NewProcess = class {
-	public static OpenProcesses: {[index: string]: ChildProcessWithoutNullStreams} = {}
+const NewProcessStream = class {
+	public static ProcessSleepTime = 5 //Minutes
 
 	constructor(Name: string) {
-		if (!NewProcess.OpenProcesses[Name]) {
-			
+		if (!OpenProcesses[Name]) {
+			OpenProcesses[Name] = spawn(Name, [])
+			OpenProcesses[Name]!.stdout.setEncoding("utf-8")
+			NewProcessProxy(OpenProcesses[Name]!)
 		}
+		return OpenProcesses[Name]!
 	}
 }
 
-export {
-	NewProcess
+const OpenProcesses: OpenProcessesHash = {}
+const NewProcessProxy = (Process: ChildProcessWithoutNullStreams): void => {
+	setTimeout(() => {
+
+	}, NewProcessStream.ProcessSleepTime*6e4)
 }
+
+export default NewProcessStream
