@@ -1,7 +1,7 @@
 import { AttachmentBuilder, SlashCommandBuilder } from "discord.js"
 import { print } from "../../io.js"
 import SageService from "../_lib/sagemath/src.js"
-import { MessageParser } from "../_lib/parseOutput.js"
+import MessageParser from "../_lib/parseOutput.js"
 
 const Forbidden_Commands: string[] = [
 	"quit"

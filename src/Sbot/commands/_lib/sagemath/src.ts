@@ -12,6 +12,7 @@ import fs from "node:fs"
 import EventEmitter from "node:events"
 import { warn } from "../../../io.js"
 import { MessageParser } from "../parseOutput.js"
+import MessageParser from "../parseOutput.js"
 
 type SageService<T> = T
 type Kernel = SageService<any>

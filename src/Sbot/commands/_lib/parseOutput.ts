@@ -28,6 +28,4 @@ const MessageParser = class {
 	}
 }
 
-export {
-	MessageParser
-}
+export default MessageParser
