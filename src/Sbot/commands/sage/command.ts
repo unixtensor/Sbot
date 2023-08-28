@@ -1,3 +1,7 @@
+// Sbot
+// @interpreterK - GitHub
+// 2023
+
 import { AttachmentBuilder, SlashCommandBuilder } from "discord.js"
 import { print } from "../../io.js"
 import SageService from "../_lib/sagemath/src.js"
@@ -51,14 +55,17 @@ module.exports = {
 				await interaction.reply(SageMessageVersion()+`The command ${ParsedNotAllowed.CodeBlock()} is not allowed in this context.`)
 				AnswerQueue = false
 			} else {
+				const SageInstance = new SageService()
+				SageInstance.new(input)
+
 				SageService.ResultParsed.once("failed", async (FailReason: string) => {
 					const ParsedFailReason = new MessageParser(FailReason)
 					await interaction.reply(SageMessageVersion()+`Sage errored, this is mostly likely a problem with my internal programming.\nError status: ${ParsedFailReason.CodeBlockMultiLine()}`)
 					AnswerQueue = false
 				})
-				SageService.ResultParsed.once("result", async (Data: string[], IsFile: boolean) => {
+				SageService.ResultParsed.once("result", async (Data: string, IsFile: boolean, FileLocation: string) => {
 					if (IsFile) {
-						const Image = new AttachmentBuilder(Data[0])
+						const Image = new AttachmentBuilder(FileLocation)
 						await interaction.reply(SageMessageReply(Data), {files: [Image]})
 					} else {
 						await interaction.reply(SageMessageReply(input, Data))
@@ -66,13 +73,11 @@ module.exports = {
 					print(["SageMath command data:", "Data=", Data, "IsFile=", IsFile])
 					AnswerQueue = false
 				})
-
-				SageService.Kernel().stdin.write(input+"\n")
 			}
 		} else {
 			//TODO: make a command only for administrators to force a new sage instance?
 			setTimeout(() => AnswerQueue = false, 5000)
-			await interaction.reply("Please wait, another Sage instance is present.")
+			await interaction.reply("Please wait, another SageMath instance is present.")
 		}
 	},
 }

@@ -12,10 +12,10 @@ import path from "node:path"
 import fs from "node:fs"
 import EventEmitter from "node:events"
 import MessageParser from "../parseOutput.js"
-import NewProcessStream from "../ProcessManager.js"
+import ProcessStream from "../ProcessManager.js"
 
 type SageService<T> = T
-type Kernel = SageService<any>
+type Kernel = ChildProcessWithoutNullStreams
 type ResultEvent = EventEmitter
 
 interface stdioheap {
@@ -27,14 +27,6 @@ interface stdioheap {
 //Do error handling if the program is not installed
 let SageVersion: SageService<string> = "null"
 exec("sage --version", (_Error, Out) => SageVersion = new MessageParser(Out).CodeBlock())
-
-let Kernel: undefined | ChildProcessWithoutNullStreams
-const KernelInstance = () => {
-	if (!Kernel) {
-		Kernel = spawn("sage", [])
-	}
-	return Kernel
-}
 
 const SearchSageTemp = class {
 	private LookForFormat: string;
@@ -69,8 +61,22 @@ const SearchSageTemp = class {
 	}
 }
 
+let WelcomeCheck: boolean = false
+let Kernel: null | Kernel = null
+const KernelInstance = () => {
+	if (!Kernel) {
+		const SageStream = new ProcessStream("sage")
+		Kernel = SageStream.new(true)
+		ProcessStream.onExit.once("exit", () => {
+			Kernel = null
+			WelcomeCheck = false
+		})
+	}
+	return Kernel
+}
+
 const SageService_Properties = class {
-	public static Kernel = (): SageService<Kernel> => KernelInstance
+	public static Kernel = ():  SageService<Kernel> => KernelInstance()
 	public static Version = (): SageService<string> => SageVersion
 	public static ResultParsed: SageService<ResultEvent> = new EventEmitter()
 }
@@ -80,64 +86,69 @@ const SageService = class extends SageService_Properties {
 
 	constructor() {
         super()
-		this.stdioheap = {
+ 		this.stdioheap = {
 			entries: [],
 			filepath: "",
 			parsed: false, //Mark the operation done and return the final result
 		}
 	}
 
-	public stdoutSync(chunk: string): stdioheap {
-		if (chunk != "\n" && chunk != "," && chunk != "") {
-			if (chunk.indexOf("png viewer") != -1) {
-				//Here for later, https://doc.sagemath.org/html/en/reference/misc/sage/misc/temporary_file.html
-				// /tmp/
-				const TempSearcher = new SearchSageTemp(".png")
-				const PNGresult = TempSearcher.SearchForNewest()
-				this.stdioheap.filepath = PNGresult
-				this.stdioheap.entries.push(chunk)
-				this.stdioheap.parsed = true
-			} else if (chunk.indexOf("html viewer") != -1) {
-				//??
-				//firefox headless mode to take pictures of the html page?
-			} else {
-				const NoNline_chunk = chunk.replace(/\n/, "")
-				const operation_end = NoNline_chunk.match(/^sage:.?/)
-				if (operation_end) {
+	private stdoutSync(chunk: string): stdioheap {
+		if (!WelcomeCheck) {
+			if (chunk.match(/[\n\W]/g)) {
+				WelcomeCheck = true
+			}
+		} else {
+			if (chunk != "\n" && chunk != "," && chunk != "") {
+				if (chunk.indexOf("png viewer") != -1) {
+					//Here for later, https://doc.sagemath.org/html/en/reference/misc/sage/misc/temporary_file.html
+					// /tmp/
+					const TempSearcher = new SearchSageTemp(".png")
+			 		const PNGresult = TempSearcher.SearchForNewest()
+					this.stdioheap.filepath = PNGresult
+					this.stdioheap.entries.push(chunk)
 					this.stdioheap.parsed = true
+				} else if (chunk.indexOf("html viewer") != -1) {
+					//??
+					//firefox headless mode to take pictures of the html page?
 				} else {
-					this.stdioheap.entries.push(NoNline_chunk)
+					const NoNline_chunk = chunk.replace(/\n/, "")
+					const operation_end = NoNline_chunk.match(/^sage:.?/)
+					if (operation_end) {
+						this.stdioheap.parsed = true
+					} else {
+						this.stdioheap.entries.push(NoNline_chunk)
+					}
 				}
 			}
 		}
 		return this.stdioheap
 	}
 
-	public clear_stdioheap(): void {
+	private clear_stdioheap(): void {
 		this.stdioheap.entries = []
 		this.stdioheap.filepath = ""
 		this.stdioheap.parsed = false
 	}
-}
 
-const SageInstance = new SageService()
-
-SageService.Kernel().stdout.on("data", (chunk: string) => {
-	const SageResult: stdioheap = SageInstance.stdoutSync(chunk)
-	if (SageResult.parsed) {
-		const ParsedData = SageResult.entries
-		const UsingFile = SageResult.filepath != ""
-		if (UsingFile) {
-			
+	public new(stdin_write?: string): void {
+		SageService.Kernel().stdout.on("data", (chunk: string) => {
+			const SageResult: stdioheap = this.stdoutSync(chunk)
+			if (SageResult.parsed) {
+				const ParsedData = SageResult.entries
+				const UsingFile = SageResult.filepath != ""
+				SageService.ResultParsed.emit("result", ParsedData, UsingFile, SageResult.filepath)
+				this.clear_stdioheap()
+			}
+		})
+		SageService.Kernel().stderr.on("data", (chunk: string) => {
+			warn(["SageMath - stderr ERROR:", chunk])
+			SageService.ResultParsed.emit("failed", chunk)
+		})
+		if (stdin_write) {
+			SageService.Kernel().stdin.write(stdin_write+"\n")
 		}
-		SageService.ResultParsed.emit("result", ParsedData, UsingFile, FileLocation)
-		SageInstance.clear_stdioheap()
 	}
-})
-
-SageService.Kernel().stderr.on("data", (chunk: string) => {
-	warn(["SageMath - stderr ERROR:", chunk])
-	SageService.ResultParsed.emit("failed", chunk)
-})
+}
 
 export default SageService
