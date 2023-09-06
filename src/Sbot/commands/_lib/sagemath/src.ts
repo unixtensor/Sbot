@@ -7,11 +7,11 @@
 //xdg-mime query default image/png
 
 import { ChildProcessWithoutNullStreams, exec } from "node:child_process"
-import { warn } from "../../../io.js"
+import { warn, print } from "../../../io.js"
 import path from "node:path"
 import fs from "node:fs"
 import EventEmitter from "node:events"
-import MessageParser from "../parseOutput.js"
+import MessageParser from "../ParseOutput.js"
 import ProcessStream from "../ProcessManager.js"
 
 type SageService<T> = T
@@ -35,7 +35,7 @@ const SearchSageTemp = class {
 		this.LookForFormat = LookForFormat
 	}
 
-	public SearchForNewest(): string {
+	public SearchForNewest(): string { 
 		let FormatPath_Result = ""
 		let FormatPath_ResultTime = 0
 		
@@ -76,7 +76,7 @@ const KernelInstance = () => {
 }
 
 const SageService_Properties = class {
-	public static Kernel = ():  SageService<Kernel> => KernelInstance()
+	public static Kernel: () => SageService<Kernel> = KernelInstance
 	public static Version = (): SageService<string> => SageVersion
 	public static ResultParsed: SageService<ResultEvent> = new EventEmitter()
 }
@@ -92,7 +92,7 @@ const SageService = class extends SageService_Properties {
 			parsed: false, //Mark the operation done and return the final result
 		}
 	}
-
+	
 	private stdoutSync(chunk: string): stdioheap {
 		if (!WelcomeCheck) {
 			if (chunk.match(/[\n\W]/g)) {
@@ -112,12 +112,15 @@ const SageService = class extends SageService_Properties {
 					//??
 					//firefox headless mode to take pictures of the html page?
 				} else {
-					const NoNline_chunk = chunk.replace(/\n/, "")
-					const operation_end = NoNline_chunk.match(/^sage:.?/)
+					const operation_end = chunk.match(/sage:.?/)
 					if (operation_end) {
 						this.stdioheap.parsed = true
+						//oof
+						if (!chunk.match(/^sage:/)) {
+							this.stdioheap.entries.push(chunk.replace(/sage:/, ""))
+						}
 					} else {
-						this.stdioheap.entries.push(NoNline_chunk)
+						this.stdioheap.entries.push(chunk)
 					}
 				}
 			}

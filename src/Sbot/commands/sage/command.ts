@@ -2,10 +2,11 @@
 // @interpreterK - GitHub
 // 2023
 
-import { AttachmentBuilder, SlashCommandBuilder } from "discord.js"
+import { AttachmentBuilder, SlashCommandBuilder, codeBlock } from "discord.js"
 import { print } from "../../io.js"
 import SageService from "../_lib/sagemath/src.js"
-import MessageParser from "../_lib/parseOutput.js"
+import MessageParser from "../_lib/ParseOutput.js"
+import MaxStrOut from "../_lib/MaxOutManager.js"
 
 const Forbidden_Commands: string[] = [
 	"quit"
@@ -47,32 +48,37 @@ module.exports = {
 	async execute(interaction: any) {
 		if (!AnswerQueue) {
 			AnswerQueue = true
-			const input: string = interaction.options.getString("input")
-			print(["SageMath command started input=", input])
+			const Input: string = interaction.options.getString("input")
+			print(["SageMath command started input=", Input])
 
-			if (!CommandAllowed(input)) {
-				const ParsedNotAllowed = new MessageParser(input)
-				await interaction.reply(SageMessageVersion()+`The command ${ParsedNotAllowed.CodeBlock()} is not allowed in this context.`)
+			if (!CommandAllowed(Input)) {
+				const ParsedNotAllowed = new MessageParser(Input)
+				const ParsedCodeBlock = ParsedNotAllowed.CodeBlock()
+				await interaction.reply(MaxStrOut(SageMessageVersion()+`The command ${ParsedCodeBlock} is not allowed in this context.`), ParsedCodeBlock)
 				AnswerQueue = false
 			} else {
-				const SageInstance = new SageService()
-				SageInstance.new(input)
+				//Start a new Sage stdin and stdout instance
+				new SageService().new(Input)
 
 				SageService.ResultParsed.once("failed", async (FailReason: string) => {
 					const ParsedFailReason = new MessageParser(FailReason)
-					await interaction.reply(SageMessageVersion()+`Sage errored, this is mostly likely a problem with my internal programming.\nError status: ${ParsedFailReason.CodeBlockMultiLine()}`)
+					const ParsedFailBlock = ParsedFailReason.CodeBlockMultiLine()
+					await interaction.reply(MaxStrOut(SageMessageVersion()+`Sage errored, this is mostly likely a problem with my internal programming.\nError status: ${ParsedFailBlock}`, ParsedFailBlock))
 					AnswerQueue = false
 				})
+
 				SageService.ResultParsed.once("result", async (Data: string, IsFile: boolean, FileLocation: string) => {
 					if (IsFile) {
 						const Image = new AttachmentBuilder(FileLocation)
-						await interaction.reply(SageMessageReply(Data), {files: [Image]})
+						await interaction.reply(MaxStrOut(SageMessageReply(Data)), {files: [Image]})
 					} else {
-						await interaction.reply(SageMessageReply(input, Data))
+						await interaction.reply(MaxStrOut(SageMessageReply(Input, Data), Data))
 					}
 					print(["SageMath command data:", "Data=", Data, "IsFile=", IsFile])
 					AnswerQueue = false
 				})
+
+				setTimeout(() => AnswerQueue = false, 5000)
 			}
 		} else {
 			//TODO: make a command only for administrators to force a new sage instance?
